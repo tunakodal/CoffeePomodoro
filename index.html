@@ -5,18 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pomodoro</title>
 
-  <!-- Favicon (tab icon) -->
   <link rel="icon" type="image/png" href="assets/coffee_4.png" />
-
   <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
   <main class="shell">
     <section class="panel left">
       <div class="coffee-stage">
         <img id="coffeeImg" class="coffee-img" src="assets/coffee_4.png" alt="Coffee progress" />
 
-        <!-- top-left HUD -->
         <div class="hud">
           <div class="hud-time" id="timeText">55:00</div>
           <div class="hud-mode" id="timerSub">Focus</div>
@@ -34,10 +32,12 @@
           <label for="focusInput">Duration</label>
           <input id="focusInput" type="number" min="1" inputmode="numeric" />
         </div>
+
         <div class="field">
           <label for="breakInput">Break</label>
           <input id="breakInput" type="number" min="1" inputmode="numeric" />
         </div>
+
         <button class="btn small" id="applyBtn">Apply</button>
       </div>
     </section>
