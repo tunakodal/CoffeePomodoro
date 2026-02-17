@@ -1,81 +1,56 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Coffee Pomodoro</title>
-  <link rel="stylesheet" href="styles.css" />
+  <title>Pomodoro</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="app">
-    <header class="top">
-      <div class="brand">
-        <div class="dot"></div>
-        <h1>Coffee Pomodoro</h1>
+  <main class="shell">
+    <section class="panel left">
+      <div class="coffee-stage">
+        <img id="coffeeImg" class="coffee-img" src="assets/coffee_5.png" alt="Coffee progress" />
+        <div class="timer-overlay" id="timeText">25:00</div>
       </div>
 
-      <div class="mode" id="modePill" aria-live="polite">Focus</div>
-    </header>
+      <div class="controls">
+        <button class="btn primary" id="startBtn">Start</button>
+        <button class="btn" id="pauseBtn" disabled>Pause</button>
+        <button class="btn danger" id="restartBtn">Restart</button>
+      </div>
 
-    <section class="grid">
-      <!-- LEFT: timer -->
-      <section class="card timer-card">
-        <div class="coffee-wrap" aria-label="Coffee pot progress">
-          <div class="coffee">
-            <img class="coffee-img" src="assets/coffee.png" alt="Pixel coffee" />
-            <div class="bars" id="bars" aria-hidden="true"></div>
-          </div>
-          <p class="hint" id="hintText">Her <b>Focus/5</b> dakikada bir bar azalır.</p>
+      <div class="settings">
+        <div class="field">
+          <label for="focusInput">Focus (min)</label>
+          <input id="focusInput" type="number" min="5" placeholder="25" />
         </div>
-
-        <div class="time" id="timeText">25:00</div>
-
-        <div class="controls">
-          <button class="btn primary" id="startBtn">Start</button>
-          <button class="btn" id="pauseBtn" disabled>Pause</button>
-          <button class="btn danger" id="restartBtn">Restart</button>
+        <div class="field">
+          <label for="breakInput">Break (min)</label>
+          <input id="breakInput" type="number" min="5" placeholder="5" />
         </div>
+        <button class="btn small" id="applyBtn">Apply</button>
+      </div>
 
-        <div class="settings">
-          <div class="field">
-            <label for="focusInput">Duration (min)</label>
-            <input id="focusInput" type="number" min="5" step="5" value="25" />
-          </div>
-
-          <div class="field">
-            <label for="breakInput">Break (min)</label>
-            <input id="breakInput" type="number" min="5" step="5" value="5" />
-          </div>
-
-          <button class="btn small" id="applyBtn">Apply</button>
-        </div>
-
-        <div class="subtle">
-          <span id="stageMeta">Segment: 1/5</span>
-          <span class="sep">•</span>
-          <span id="nextMeta">Next bar in: 05:00</span>
-        </div>
-      </section>
-
-      <!-- RIGHT: tiny todo -->
-      <section class="card todo-card">
-        <div class="todo-head">
-          <h2>Mini list</h2>
-          <span class="micro">çok küçük alan 🙂</span>
-        </div>
-
-        <form id="todoForm" class="todo-form" autocomplete="off">
-          <input id="todoInput" class="todo-input" maxlength="60" placeholder="Yapılacak ekle..." />
-          <button class="btn small primary" type="submit">Add</button>
-        </form>
-
-        <ul id="todoList" class="todo-list"></ul>
-      </section>
+      <div class="meta">
+        <span id="modePill">Focus</span>
+        <span class="sep">•</span>
+        <span id="stageMeta">Segment 1/5</span>
+      </div>
     </section>
 
-    <footer class="foot">
-      <span>Offline • GitHub Pages</span>
-    </footer>
+    <section class="panel right">
+      <div class="todo-head">
+        <h2>Tasks</h2>
+      </div>
+
+      <form id="todoForm" class="todo-form" autocomplete="off">
+        <input id="todoInput" class="todo-input" maxlength="60" placeholder="Add a task..." />
+        <button class="btn small primary" type="submit">Add</button>
+      </form>
+
+      <ul id="todoList" class="todo-list"></ul>
+    </section>
   </main>
 
   <script src="app.js"></script>
