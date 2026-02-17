@@ -15,11 +15,10 @@ const els = {
 
 const STORAGE_KEY = "coffee_pomodoro_v3";
 
-// 5 images => levels 4..0
-const LEVEL_MAX = 4;   // full
-const LEVEL_MIN = 0;   // empty
-const LEVEL_STEPS = 4; // 4 transitions
-const TAIL_SEC = 5;    // last 5 seconds rule
+const LEVEL_MAX = 4;
+const LEVEL_MIN = 0;
+const LEVEL_STEPS = 4;
+const TAIL_SEC = 5;
 
 let state = {
   mode: "focus",
@@ -32,8 +31,8 @@ let state = {
   totalSec: 55 * 60,
   remainingSec: 55 * 60,
 
-  elapsedSec: 0,       // for break count-up
-  displaySec: 55 * 60, // what we show
+  elapsedSec: 0,
+  displaySec: 55 * 60,
 
   level: LEVEL_MAX,
 
@@ -69,12 +68,15 @@ function persist(){
 function load(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
-    if(!raw) return;
+    if(!raw) return false;
     const p = JSON.parse(raw);
     if(typeof p.focusMin === "number") state.focusMin = p.focusMin;
     if(typeof p.breakMin === "number") state.breakMin = p.breakMin;
     if(Array.isArray(p.todos)) state.todos = p.todos;
-  }catch{}
+    return true;
+  }catch{
+    return false;
+  }
 }
 
 function setMode(mode){
@@ -88,7 +90,6 @@ function setMode(mode){
 
   state.level = (mode === "focus") ? LEVEL_MAX : LEVEL_MIN;
 
-  // 4 level changes BEFORE last 5 seconds
   const effective = Math.max(1, state.totalSec - TAIL_SEC);
   state.segmentSec = Math.max(1, Math.floor(effective / LEVEL_STEPS));
   state.segmentLeftSec = state.segmentSec;
@@ -103,9 +104,7 @@ function applyTailRule(){
 }
 
 function updateUI(){
-  const label = state.mode === "focus" ? "Focus" : "Break";
-  els.timerSub.textContent = label;
-
+  els.timerSub.textContent = (state.mode === "focus") ? "Focus" : "Break";
   els.timeText.textContent = fmtTime(state.displaySec);
   els.coffeeImg.src = coffeeSrc(state.level);
 
@@ -119,10 +118,8 @@ function tick(){
   state.remainingSec -= 1;
   state.elapsedSec += 1;
 
-  // focus down, break up
   state.displaySec = (state.mode === "focus") ? state.remainingSec : state.elapsedSec;
 
-  // segment-based level changes only outside last 5 seconds
   if(state.remainingSec > TAIL_SEC){
     state.segmentLeftSec -= 1;
 
@@ -139,10 +136,8 @@ function tick(){
     }
   }
 
-  // tail override
   applyTailRule();
 
-  // end
   if(state.remainingSec <= 0){
     state.level = (state.mode === "focus") ? LEVEL_MIN : LEVEL_MAX;
     state.displaySec = (state.mode === "focus") ? 0 : state.totalSec;
@@ -190,7 +185,7 @@ function applySettings(){
   restart();
 }
 
-/* --------- TODO --------- */
+/* TODO */
 function renderTodos(){
   els.todoList.innerHTML = "";
   for(const t of state.todos){
@@ -243,18 +238,14 @@ function addTodo(text){
 }
 
 function init(){
-  const raw = localStorage.getItem(STORAGE_KEY);
-
-  if(!raw){
-    // first run → force defaults
+  // If nothing stored yet, force 55/5 and persist once.
+  const had = load();
+  if(!had){
     state.focusMin = 55;
     state.breakMin = 5;
     persist();
-  } else {
-    load();
   }
 
-  // reflect values in inputs
   els.focusInput.value = state.focusMin;
   els.breakInput.value = state.breakMin;
 
@@ -275,3 +266,4 @@ function init(){
   renderTodos();
 }
 
+init();
