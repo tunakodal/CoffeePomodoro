@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Coffee Pomodoro</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <div class="brand">
+        <div class="dot"></div>
+        <h1>Coffee Pomodoro</h1>
+      </div>
+
+      <div class="mode" id="modePill" aria-live="polite">Focus</div>
+    </header>
+
+    <section class="grid">
+      <!-- LEFT: timer -->
+      <section class="card timer-card">
+        <div class="coffee-wrap" aria-label="Coffee pot progress">
+          <div class="coffee">
+            <img class="coffee-img" src="assets/coffee.png" alt="Pixel coffee" />
+            <div class="bars" id="bars" aria-hidden="true"></div>
+          </div>
+          <p class="hint" id="hintText">Her <b>Focus/5</b> dakikada bir bar azalır.</p>
+        </div>
+
+        <div class="time" id="timeText">25:00</div>
+
+        <div class="controls">
+          <button class="btn primary" id="startBtn">Start</button>
+          <button class="btn" id="pauseBtn" disabled>Pause</button>
+          <button class="btn danger" id="restartBtn">Restart</button>
+        </div>
+
+        <div class="settings">
+          <div class="field">
+            <label for="focusInput">Duration (min)</label>
+            <input id="focusInput" type="number" min="5" step="5" value="25" />
+          </div>
+
+          <div class="field">
+            <label for="breakInput">Break (min)</label>
+            <input id="breakInput" type="number" min="5" step="5" value="5" />
+          </div>
+
+          <button class="btn small" id="applyBtn">Apply</button>
+        </div>
+
+        <div class="subtle">
+          <span id="stageMeta">Segment: 1/5</span>
+          <span class="sep">•</span>
+          <span id="nextMeta">Next bar in: 05:00</span>
+        </div>
+      </section>
+
+      <!-- RIGHT: tiny todo -->
+      <section class="card todo-card">
+        <div class="todo-head">
+          <h2>Mini list</h2>
+          <span class="micro">çok küçük alan 🙂</span>
+        </div>
+
+        <form id="todoForm" class="todo-form" autocomplete="off">
+          <input id="todoInput" class="todo-input" maxlength="60" placeholder="Yapılacak ekle..." />
+          <button class="btn small primary" type="submit">Add</button>
+        </form>
+
+        <ul id="todoList" class="todo-list"></ul>
+      </section>
+    </section>
+
+    <footer class="foot">
+      <span>Offline • GitHub Pages</span>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
