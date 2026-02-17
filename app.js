@@ -12,6 +12,7 @@ const els = {
   todoForm: document.getElementById("todoForm"),
   todoInput: document.getElementById("todoInput"),
   todoList: document.getElementById("todoList"),
+  timerSub: document.getElementById("timerSub"),
 };
 
 const STORAGE_KEY = "coffee_pomodoro_v3";
@@ -23,15 +24,18 @@ const LEVEL_STEPS = 4;        // "area split into 4" => 4 drops/fills
 
 let state = {
   mode: "focus",              // "focus" | "break"
-  focusMin: 25,
+  focusMin: 55,
   breakMin: 5,
 
   running: false,
   intervalId: null,
 
-  totalSec: 25 * 60,
-  remainingSec: 25 * 60,
+  totalSec: 55 * 60,
+  remainingSec: 55 * 60,
 
+  elapsedSec: 0,
+  displaySec: 55 * 60,
+  
   // coffee level
   level: LEVEL_MAX,           // focus starts full (4), break starts empty (0)
 
@@ -90,6 +94,9 @@ function setMode(mode){
     state.remainingSec = state.totalSec;
 
     state.level = LEVEL_MIN;      // start empty
+
+    state.elapsedSec = 0;
+    state.displaySec = (mode === "focus") ? state.remainingSec : 0;
   }
 
   // We want 4 level changes BEFORE the last 5 seconds.
@@ -102,14 +109,16 @@ function setMode(mode){
 }
 
 function updateUI(){
-  els.timeText.textContent = fmtTime(state.remainingSec);
   els.modePill.textContent = state.mode === "focus" ? "Focus" : "Break";
+  els.timerSub.textContent = els.modePill.textContent;
 
-  // Segment display based on changesDone (0..4) => show 1/5..5/5
-  // 0 changes => segment 1/5, 4 changes => segment 5/5
-  const seg = clamp(state.changesDone + 1, 1, 5);
-  els.stageMeta.textContent = `Segment ${seg}/5`;
+  els.modePill.classList.toggle("is-focus", state.mode === "focus");
+  els.modePill.classList.toggle("is-break", state.mode === "break");
 
+  // time text
+  els.timeText.textContent = fmtTime(state.displaySec);
+
+  // coffee image
   els.coffeeImg.src = coffeeSrc(state.level);
 
   els.startBtn.disabled = state.running;
@@ -149,20 +158,30 @@ function tick(){
 
       state.segmentLeftSec = state.segmentSec;
     }
+
+    state.remainingSec -= 1;
+    state.elapsedSec += 1;
+
+    // display time
+    state.displaySec = (state.mode === "focus")
+      ? state.remainingSec
+      : state.elapsedSec;
   }
 
-  // session end
-  if(state.remainingSec <= 0){
-    // lock final image
-    if(state.mode === "focus") state.level = LEVEL_MIN;
-    else state.level = LEVEL_MAX;
+ if(state.remainingSec <= 0){
+  if(state.mode === "focus"){
+    state.level = LEVEL_MIN;
+    state.displaySec = 0;
+  } else {
+    state.level = LEVEL_MAX;
+    state.displaySec = state.totalSec; // count up completed
+  }
+  updateUI();
+  setMode(state.mode === "focus" ? "break" : "focus");
+  updateUI();
+  return;
+}
 
-    updateUI();
-
-    // auto-switch
-    setMode(state.mode === "focus" ? "break" : "focus");
-    updateUI();
-    return;
   }
 
   updateUI();
