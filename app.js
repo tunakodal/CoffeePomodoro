@@ -2,12 +2,15 @@ const els = {
   coffeeImg: document.getElementById("coffeeImg"),
   timeText: document.getElementById("timeText"),
   timerSub: document.getElementById("timerSub"),
+
   startBtn: document.getElementById("startBtn"),
   pauseBtn: document.getElementById("pauseBtn"),
   restartBtn: document.getElementById("restartBtn"),
+
   focusInput: document.getElementById("focusInput"),
   breakInput: document.getElementById("breakInput"),
   applyBtn: document.getElementById("applyBtn"),
+
   todoForm: document.getElementById("todoForm"),
   todoInput: document.getElementById("todoInput"),
   todoList: document.getElementById("todoList"),
@@ -15,13 +18,14 @@ const els = {
 
 const STORAGE_KEY = "coffee_pomodoro_v3";
 
-const LEVEL_MAX = 4;
-const LEVEL_MIN = 0;
-const LEVEL_STEPS = 4;
-const TAIL_SEC = 5;
+// 5 images => levels 4..0
+const LEVEL_MAX = 4;     // full
+const LEVEL_MIN = 0;     // empty
+const LEVEL_STEPS = 4;   // 4 transitions: 4->3->2->1->0
+const TAIL_SEC = 5;      // last 5 seconds rule
 
 let state = {
-  mode: "focus",
+  mode: "focus",          // "focus" | "break"
   focusMin: 55,
   breakMin: 5,
 
@@ -31,14 +35,17 @@ let state = {
   totalSec: 55 * 60,
   remainingSec: 55 * 60,
 
+  // break counts up
   elapsedSec: 0,
   displaySec: 55 * 60,
 
+  // coffee progress
   level: LEVEL_MAX,
 
+  // segmenting for 4 changes before last 5 sec
   segmentSec: 1,
   segmentLeftSec: 1,
-  changesDone: 0,
+  changesDone: 0,         // 0..4
 
   todos: [],
 };
@@ -69,10 +76,13 @@ function load(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
     if(!raw) return false;
+
     const p = JSON.parse(raw);
+
     if(typeof p.focusMin === "number") state.focusMin = p.focusMin;
     if(typeof p.breakMin === "number") state.breakMin = p.breakMin;
     if(Array.isArray(p.todos)) state.todos = p.todos;
+
     return true;
   }catch{
     return false;
@@ -90,6 +100,7 @@ function setMode(mode){
 
   state.level = (mode === "focus") ? LEVEL_MAX : LEVEL_MIN;
 
+  // split the time (excluding last 5 sec) into 4 equal-ish segments
   const effective = Math.max(1, state.totalSec - TAIL_SEC);
   state.segmentSec = Math.max(1, Math.floor(effective / LEVEL_STEPS));
   state.segmentLeftSec = state.segmentSec;
@@ -98,28 +109,47 @@ function setMode(mode){
 }
 
 function applyTailRule(){
+  // last 5 seconds: lock final state image
   if(state.remainingSec <= TAIL_SEC){
     state.level = (state.mode === "focus") ? LEVEL_MIN : LEVEL_MAX;
   }
 }
 
+function updateTabTitle(){
+  if(!state.running){
+    document.title = "Pomodoro";
+    return;
+  }
+  const modeLabel = (state.mode === "focus") ? "Focus" : "Break";
+  document.title = `${modeLabel} — ${fmtTime(state.displaySec)}`;
+}
+
 function updateUI(){
-  els.timerSub.textContent = (state.mode === "focus") ? "Focus" : "Break";
+  const label = (state.mode === "focus") ? "Focus" : "Break";
+  els.timerSub.textContent = label;
+
   els.timeText.textContent = fmtTime(state.displaySec);
   els.coffeeImg.src = coffeeSrc(state.level);
 
   els.startBtn.disabled = state.running;
   els.pauseBtn.disabled = !state.running;
+
+  updateTabTitle();
 }
 
 function tick(){
   if(!state.running) return;
 
+  // one second passes
   state.remainingSec -= 1;
   state.elapsedSec += 1;
 
-  state.displaySec = (state.mode === "focus") ? state.remainingSec : state.elapsedSec;
+  // display time: focus counts down, break counts up
+  state.displaySec = (state.mode === "focus")
+    ? state.remainingSec
+    : state.elapsedSec;
 
+  // segment changes only outside last 5 seconds
   if(state.remainingSec > TAIL_SEC){
     state.segmentLeftSec -= 1;
 
@@ -127,8 +157,10 @@ function tick(){
       state.changesDone += 1;
 
       if(state.mode === "focus"){
+        // 4 -> 3 -> 2 -> 1 -> 0
         state.level = clamp(LEVEL_MAX - state.changesDone, LEVEL_MIN, LEVEL_MAX);
       } else {
+        // 0 -> 1 -> 2 -> 3 -> 4
         state.level = clamp(LEVEL_MIN + state.changesDone, LEVEL_MIN, LEVEL_MAX);
       }
 
@@ -136,14 +168,17 @@ function tick(){
     }
   }
 
+  // tail override
   applyTailRule();
 
+  // end of session
   if(state.remainingSec <= 0){
     state.level = (state.mode === "focus") ? LEVEL_MIN : LEVEL_MAX;
     state.displaySec = (state.mode === "focus") ? 0 : state.totalSec;
 
     updateUI();
 
+    // auto switch
     setMode(state.mode === "focus" ? "break" : "focus");
     updateUI();
     return;
@@ -178,6 +213,7 @@ function applySettings(){
   const f = parseInt(els.focusInput.value, 10);
   const b = parseInt(els.breakInput.value, 10);
 
+  // enforce defaults if empty
   state.focusMin = clamp(isNaN(f) ? 55 : f, 1, 180);
   state.breakMin = clamp(isNaN(b) ? 5 : b, 1, 60);
 
@@ -185,9 +221,10 @@ function applySettings(){
   restart();
 }
 
-/* TODO */
+/* --------- TODO --------- */
 function renderTodos(){
   els.todoList.innerHTML = "";
+
   for(const t of state.todos){
     const li = document.createElement("li");
     li.className = "todo-item" + (t.done ? " done" : "");
@@ -224,6 +261,7 @@ function renderTodos(){
 
     li.appendChild(text);
     li.appendChild(actions);
+
     els.todoList.appendChild(li);
   }
 }
@@ -231,16 +269,22 @@ function renderTodos(){
 function addTodo(text){
   const clean = (text || "").trim();
   if(!clean) return;
+
   state.todos.unshift({ id: crypto.randomUUID(), text: clean, done: false });
+
+  // keep list small
   state.todos = state.todos.slice(0, 14);
+
   persist();
   renderTodos();
 }
 
+/* --------- INIT --------- */
 function init(){
-  // If nothing stored yet, force 55/5 and persist once.
   const had = load();
-  if(!had){
+
+  // If no saved settings OR saved values are junk (<=1), force 55/5
+  if(!had || state.focusMin <= 1 || state.breakMin <= 1){
     state.focusMin = 55;
     state.breakMin = 5;
     persist();
