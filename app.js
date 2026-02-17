@@ -1,48 +1,46 @@
-// Coffee Pomodoro (GitHub Pages)
-// - 5 bars
-// - Focus: every (focus/5) minutes -> bar decreases
-// - Break: every (break/5) minutes -> bar increases
-// - minimal todo with localStorage
-
 const els = {
-  modePill: document.getElementById("modePill"),
-  bars: document.getElementById("bars"),
-  hintText: document.getElementById("hintText"),
+  coffeeImg: document.getElementById("coffeeImg"),
   timeText: document.getElementById("timeText"),
+  modePill: document.getElementById("modePill"),
+  stageMeta: document.getElementById("stageMeta"),
   startBtn: document.getElementById("startBtn"),
   pauseBtn: document.getElementById("pauseBtn"),
   restartBtn: document.getElementById("restartBtn"),
   focusInput: document.getElementById("focusInput"),
   breakInput: document.getElementById("breakInput"),
   applyBtn: document.getElementById("applyBtn"),
-  stageMeta: document.getElementById("stageMeta"),
-  nextMeta: document.getElementById("nextMeta"),
   todoForm: document.getElementById("todoForm"),
   todoInput: document.getElementById("todoInput"),
   todoList: document.getElementById("todoList"),
 };
 
-const STORAGE_KEY = "coffee_pomodoro_v1";
+const STORAGE_KEY = "coffee_pomodoro_v3";
+
+// 5 images => levels 4..0
+const LEVEL_MAX = 4;          // full
+const LEVEL_MIN = 0;          // empty
+const LEVEL_STEPS = 4;        // "area split into 4" => 4 drops/fills
 
 let state = {
-  mode: "focus", // "focus" | "break"
+  mode: "focus",              // "focus" | "break"
   focusMin: 25,
   breakMin: 5,
 
   running: false,
   intervalId: null,
 
-  // timer accounting (seconds)
   totalSec: 25 * 60,
   remainingSec: 25 * 60,
 
-  // bar logic
-  barsTotal: 5,
-  barsFilled: 5,      // for focus starts full
-  segmentSec: (25 * 60) / 5,
-  nextBarInSec: (25 * 60) / 5,
+  // coffee level
+  level: LEVEL_MAX,           // focus starts full (4), break starts empty (0)
 
-  // todo
+  // segmentation: 4 changes across session, but last 5s forced end-state
+  segmentSec: 1,
+  segmentLeftSec: 1,
+  changesDone: 0,             // 0..4
+  forceTailSec: 5,            // last 5 seconds rule
+
   todos: [],
 };
 
@@ -55,49 +53,17 @@ function fmtTime(sec){
   return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
 }
 
-function rebuildBars(){
-  els.bars.innerHTML = "";
-  for(let i=0;i<state.barsTotal;i++){
-    const div = document.createElement("div");
-    div.className = "bar" + (i < state.barsFilled ? "" : " off");
-    els.bars.appendChild(div);
-  }
-}
-
-function updateUI(){
-  els.modePill.textContent = state.mode === "focus" ? "Focus" : "Break";
-  els.modePill.style.borderColor = state.mode === "focus"
-    ? "rgba(217,164,65,.35)"
-    : "rgba(255,255,255,.12)";
-
-  els.timeText.textContent = fmtTime(state.remainingSec);
-
-  const segIndex = state.mode === "focus"
-    ? (state.barsTotal - state.barsFilled + 1)
-    : (state.barsFilled); // on break, filled bars indicate progress
-
-  const segClamped = clamp(segIndex, 1, 5);
-  els.stageMeta.textContent = `Segment: ${segClamped}/5`;
-  els.nextMeta.textContent = `Next bar in: ${fmtTime(state.nextBarInSec)}`;
-
-  els.hintText.innerHTML =
-    state.mode === "focus"
-      ? `Her <b>Duration/5</b> dakikada bir bar azalır.`
-      : `Her <b>Break/5</b> dakikada bir bar dolar.`;
-
-  els.startBtn.disabled = state.running;
-  els.pauseBtn.disabled = !state.running;
-
-  rebuildBars();
+function coffeeSrc(level){
+  level = clamp(level, LEVEL_MIN, LEVEL_MAX);
+  return `assets/coffee_${level}.png`;
 }
 
 function persist(){
-  const payload = {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
     focusMin: state.focusMin,
     breakMin: state.breakMin,
     todos: state.todos,
-  };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }));
 }
 
 function load(){
@@ -111,36 +77,50 @@ function load(){
   }catch{}
 }
 
-function applySettings(){
-  const focus = parseInt(els.focusInput.value, 10);
-  const brk = parseInt(els.breakInput.value, 10);
-
-  // minimal guardrails: 5..180, step 1 ok (UI step=5)
-  state.focusMin = clamp(isNaN(focus)?25:focus, 5, 180);
-  state.breakMin = clamp(isNaN(brk)?5:brk, 5, 60);
-
-  els.focusInput.value = state.focusMin;
-  els.breakInput.value = state.breakMin;
-
-  persist();
-  restart(true);
-}
-
 function setMode(mode){
   state.mode = mode;
 
   if(mode === "focus"){
     state.totalSec = state.focusMin * 60;
     state.remainingSec = state.totalSec;
-    state.segmentSec = state.totalSec / 5;
-    state.nextBarInSec = state.segmentSec;
-    state.barsFilled = 5;  // starts full, decreases
+
+    state.level = LEVEL_MAX;      // start full
   } else {
     state.totalSec = state.breakMin * 60;
     state.remainingSec = state.totalSec;
-    state.segmentSec = state.totalSec / 5;
-    state.nextBarInSec = state.segmentSec;
-    state.barsFilled = 0;  // starts empty, fills
+
+    state.level = LEVEL_MIN;      // start empty
+  }
+
+  // We want 4 level changes BEFORE the last 5 seconds.
+  // That means we run 4 segments across (totalSec - 5).
+  const effective = Math.max(1, state.totalSec - state.forceTailSec);
+  state.segmentSec = Math.floor(effective / LEVEL_STEPS); // integer seconds
+  state.segmentLeftSec = state.segmentSec;
+
+  state.changesDone = 0;
+}
+
+function updateUI(){
+  els.timeText.textContent = fmtTime(state.remainingSec);
+  els.modePill.textContent = state.mode === "focus" ? "Focus" : "Break";
+
+  // Segment display based on changesDone (0..4) => show 1/5..5/5
+  // 0 changes => segment 1/5, 4 changes => segment 5/5
+  const seg = clamp(state.changesDone + 1, 1, 5);
+  els.stageMeta.textContent = `Segment ${seg}/5`;
+
+  els.coffeeImg.src = coffeeSrc(state.level);
+
+  els.startBtn.disabled = state.running;
+  els.pauseBtn.disabled = !state.running;
+}
+
+function applyTailRule(){
+  // Last 5 seconds: force end-state image
+  if(state.remainingSec <= state.forceTailSec){
+    if(state.mode === "focus") state.level = LEVEL_MIN; // empty
+    else state.level = LEVEL_MAX;                       // full
   }
 }
 
@@ -148,35 +128,39 @@ function tick(){
   if(!state.running) return;
 
   state.remainingSec -= 1;
-  state.nextBarInSec -= 1;
 
-  // Bar changes on segment boundaries (every duration/5 minutes)
-  if(state.nextBarInSec <= 0){
-    if(state.mode === "focus"){
-      state.barsFilled = clamp(state.barsFilled - 1, 0, 5);
-    } else {
-      state.barsFilled = clamp(state.barsFilled + 1, 0, 5);
+  // tail rule first (so it overrides)
+  applyTailRule();
+
+  // Only do segment-based changes if we're not in the last 5 seconds
+  if(state.remainingSec > state.forceTailSec){
+    state.segmentLeftSec -= 1;
+
+    if(state.segmentLeftSec <= 0 && state.changesDone < LEVEL_STEPS){
+      state.changesDone += 1;
+
+      if(state.mode === "focus"){
+        // 4 -> 3 -> 2 -> 1 -> 0
+        state.level = clamp(LEVEL_MAX - state.changesDone, LEVEL_MIN, LEVEL_MAX);
+      } else {
+        // 0 -> 1 -> 2 -> 3 -> 4
+        state.level = clamp(LEVEL_MIN + state.changesDone, LEVEL_MIN, LEVEL_MAX);
+      }
+
+      state.segmentLeftSec = state.segmentSec;
     }
-    // reset next segment counter (avoid drift)
-    state.nextBarInSec = state.segmentSec;
   }
 
-  // Session end
+  // session end
   if(state.remainingSec <= 0){
-    // force end-state bars to be consistent
-    if(state.mode === "focus"){
-      state.barsFilled = 0;
-    } else {
-      state.barsFilled = 5;
-    }
+    // lock final image
+    if(state.mode === "focus") state.level = LEVEL_MIN;
+    else state.level = LEVEL_MAX;
+
     updateUI();
 
-    // auto switch
-    if(state.mode === "focus"){
-      setMode("break");
-    } else {
-      setMode("focus");
-    }
+    // auto-switch
+    setMode(state.mode === "focus" ? "break" : "focus");
     updateUI();
     return;
   }
@@ -200,19 +184,24 @@ function pause(){
   updateUI();
 }
 
-function restart(keepMode = false){
+function restart(){
   pause();
-  if(!keepMode){
-    setMode("focus");
-  } else {
-    // keep current mode but reset its counters/bars
-    setMode(state.mode);
-  }
+  setMode("focus");
   updateUI();
 }
 
-/* -------------------- TODO -------------------- */
+function applySettings(){
+  const f = parseInt(els.focusInput.value, 10);
+  const b = parseInt(els.breakInput.value, 10);
 
+  state.focusMin = clamp(isNaN(f) ? 25 : f, 1, 180); // allow 1+ if you want
+  state.breakMin = clamp(isNaN(b) ? 5 : b, 1, 60);
+
+  persist();
+  restart();
+}
+
+/* --------- TODO --------- */
 function renderTodos(){
   els.todoList.innerHTML = "";
   for(const t of state.todos){
@@ -230,7 +219,6 @@ function renderTodos(){
     doneBtn.className = "iconbtn done";
     doneBtn.type = "button";
     doneBtn.textContent = t.done ? "↺" : "✓";
-    doneBtn.title = t.done ? "Undo" : "Done";
     doneBtn.onclick = () => {
       t.done = !t.done;
       persist();
@@ -241,7 +229,6 @@ function renderTodos(){
     delBtn.className = "iconbtn del";
     delBtn.type = "button";
     delBtn.textContent = "✕";
-    delBtn.title = "Delete";
     delBtn.onclick = () => {
       state.todos = state.todos.filter(x => x.id !== t.id);
       persist();
@@ -261,34 +248,24 @@ function addTodo(text){
   const clean = (text || "").trim();
   if(!clean) return;
   state.todos.unshift({ id: crypto.randomUUID(), text: clean, done: false });
-  state.todos = state.todos.slice(0, 12); // "çok küçük alan" => limit
+  state.todos = state.todos.slice(0, 14);
   persist();
   renderTodos();
 }
 
-/* -------------------- INIT -------------------- */
-
+/* --------- INIT --------- */
 function init(){
   load();
 
   els.focusInput.value = state.focusMin;
   els.breakInput.value = state.breakMin;
 
-  // build bars container once
-  for(let i=0;i<5;i++){
-    const div = document.createElement("div");
-    div.className = "bar";
-    els.bars.appendChild(div);
-  }
-
-  // set initial mode
   setMode("focus");
   updateUI();
 
-  // events
   els.startBtn.addEventListener("click", start);
   els.pauseBtn.addEventListener("click", pause);
-  els.restartBtn.addEventListener("click", () => restart(false));
+  els.restartBtn.addEventListener("click", restart);
   els.applyBtn.addEventListener("click", applySettings);
 
   els.todoForm.addEventListener("submit", (e) => {
