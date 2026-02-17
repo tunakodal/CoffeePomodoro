@@ -243,9 +243,18 @@ function addTodo(text){
 }
 
 function init(){
-  load();
+  const raw = localStorage.getItem(STORAGE_KEY);
 
-  // default: 55 / 5 (or loaded)
+  if(!raw){
+    // first run → force defaults
+    state.focusMin = 55;
+    state.breakMin = 5;
+    persist();
+  } else {
+    load();
+  }
+
+  // reflect values in inputs
   els.focusInput.value = state.focusMin;
   els.breakInput.value = state.breakMin;
 
@@ -266,4 +275,3 @@ function init(){
   renderTodos();
 }
 
-init();
