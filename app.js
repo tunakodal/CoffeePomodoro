@@ -1,7 +1,6 @@
 const els = {
   coffeeImg: document.getElementById("coffeeImg"),
   timeText: document.getElementById("timeText"),
-  modePill: document.getElementById("modePill"),
   timerSub: document.getElementById("timerSub"),
   startBtn: document.getElementById("startBtn"),
   pauseBtn: document.getElementById("pauseBtn"),
@@ -19,7 +18,7 @@ const STORAGE_KEY = "coffee_pomodoro_v3";
 // 5 images => levels 4..0
 const LEVEL_MAX = 4;   // full
 const LEVEL_MIN = 0;   // empty
-const LEVEL_STEPS = 4; // 4 transitions: 4->3->2->1->0
+const LEVEL_STEPS = 4; // 4 transitions
 const TAIL_SEC = 5;    // last 5 seconds rule
 
 let state = {
@@ -33,8 +32,8 @@ let state = {
   totalSec: 55 * 60,
   remainingSec: 55 * 60,
 
-  elapsedSec: 0,      // used for break count-up
-  displaySec: 55 * 60,
+  elapsedSec: 0,       // for break count-up
+  displaySec: 55 * 60, // what we show
 
   level: LEVEL_MAX,
 
@@ -98,7 +97,6 @@ function setMode(mode){
 }
 
 function applyTailRule(){
-  // last 5 seconds: lock final state image
   if(state.remainingSec <= TAIL_SEC){
     state.level = (state.mode === "focus") ? LEVEL_MIN : LEVEL_MAX;
   }
@@ -106,12 +104,7 @@ function applyTailRule(){
 
 function updateUI(){
   const label = state.mode === "focus" ? "Focus" : "Break";
-
-  els.modePill.textContent = label;
   els.timerSub.textContent = label;
-
-  els.modePill.classList.toggle("is-focus", state.mode === "focus");
-  els.modePill.classList.toggle("is-break", state.mode === "break");
 
   els.timeText.textContent = fmtTime(state.displaySec);
   els.coffeeImg.src = coffeeSrc(state.level);
@@ -123,16 +116,13 @@ function updateUI(){
 function tick(){
   if(!state.running) return;
 
-  // one second passes
   state.remainingSec -= 1;
   state.elapsedSec += 1;
 
-  // focus counts down, break counts up
-  state.displaySec = (state.mode === "focus")
-    ? state.remainingSec
-    : state.elapsedSec;
+  // focus down, break up
+  state.displaySec = (state.mode === "focus") ? state.remainingSec : state.elapsedSec;
 
-  // segment logic only outside last 5 seconds
+  // segment-based level changes only outside last 5 seconds
   if(state.remainingSec > TAIL_SEC){
     state.segmentLeftSec -= 1;
 
@@ -152,14 +142,13 @@ function tick(){
   // tail override
   applyTailRule();
 
-  // session end
+  // end
   if(state.remainingSec <= 0){
     state.level = (state.mode === "focus") ? LEVEL_MIN : LEVEL_MAX;
     state.displaySec = (state.mode === "focus") ? 0 : state.totalSec;
 
     updateUI();
 
-    // auto switch
     setMode(state.mode === "focus" ? "break" : "focus");
     updateUI();
     return;
@@ -194,7 +183,6 @@ function applySettings(){
   const f = parseInt(els.focusInput.value, 10);
   const b = parseInt(els.breakInput.value, 10);
 
-  // defaults: 55 / 5
   state.focusMin = clamp(isNaN(f) ? 55 : f, 1, 180);
   state.breakMin = clamp(isNaN(b) ? 5 : b, 1, 60);
 
@@ -254,11 +242,10 @@ function addTodo(text){
   renderTodos();
 }
 
-/* --------- INIT --------- */
 function init(){
   load();
 
-  // set inputs to loaded/default values (55/5)
+  // default: 55 / 5 (or loaded)
   els.focusInput.value = state.focusMin;
   els.breakInput.value = state.breakMin;
 

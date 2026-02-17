@@ -4,6 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pomodoro</title>
+
+  <!-- Favicon (tab icon) -->
+  <link rel="icon" type="image/png" href="assets/coffee_4.png" />
+
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -11,8 +15,12 @@
     <section class="panel left">
       <div class="coffee-stage">
         <img id="coffeeImg" class="coffee-img" src="assets/coffee_4.png" alt="Coffee progress" />
-        <div class="timer-overlay" id="timeText">55:00</div>
-        <div class="timer-sub" id="timerSub">Focus</div>
+
+        <!-- top-left HUD -->
+        <div class="hud">
+          <div class="hud-time" id="timeText">55:00</div>
+          <div class="hud-mode" id="timerSub">Focus</div>
+        </div>
       </div>
 
       <div class="controls">
@@ -23,18 +31,14 @@
 
       <div class="settings">
         <div class="field">
-          <label for="focusInput">Focus (min)</label>
+          <label for="focusInput">Duration</label>
           <input id="focusInput" type="number" min="1" inputmode="numeric" />
         </div>
         <div class="field">
-          <label for="breakInput">Break (min)</label>
+          <label for="breakInput">Break</label>
           <input id="breakInput" type="number" min="1" inputmode="numeric" />
         </div>
         <button class="btn small" id="applyBtn">Apply</button>
-      </div>
-
-      <div class="meta">
-        <span id="modePill" class="is-focus">Focus</span>
       </div>
     </section>
 
